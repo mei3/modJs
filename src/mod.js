@@ -136,7 +136,6 @@
 				mod.out = callback.apply(global, params);
 			}
 
-
 			while (fn = mod.onload.shift()) {
 				fn(mod.out);
 			}

@@ -1,8 +1,6 @@
 (function(global) {
+
 	var getType = Object.prototype.toString,
-		isString = function(obj) {
-			return (typeof obj) === 'string';
-		},
 		isArray = function(obj) {
 			return getType.call(obj) === '[object Array]';
 		},
@@ -15,27 +13,32 @@
 		baseJsUrl,
 		getRootPath = function() {
 			var curWwwPath = window.document.location.href,
-				pathName = window.document.location.pathname,
-				pos = curWwwPath.indexOf(pathName),
-				localhostPaht = curWwwPath.substring(0, pos),
-				projectName = pathName.substring(0, pathName.substr(1).indexOf('/') + 1);
-			return (localhostPaht + projectName);
+				pathName = window.document.location.pathname, //得到路径
+				pos = curWwwPath.indexOf(pathName), //得到“/项目名”斜线的位置
+				localhostPath = curWwwPath.substring(0, pos), //得到“协议：//ip：端口”字符串
+				projectName = pathName.substring(0, pathName.substr(1).indexOf('/') + 1); //得到项目名
+			return (localhostPath + projectName);
 		};
 
 	//存储已经加载好的模块
 	var modCache = {};
 
-	// 关键函数
+	/**require和define是同一个函数
+	 *@param {Array} deps require或define调用时传入的第一个参数
+	 *@callback {Function} reuire或define的第二个参数（即回调函数）
+	 */
+
 	var require = function(deps, callback) {
+
 		var params = [],
 			depCount = 0,
 			doc = document,
 			// scripts = doc.getElementsByTagName('script'),
 			// modName = doc.currentScript.id || scripts[scripts.length - 1].getAttribute('id'), //获取当前正在执行的脚本名
-			modName = doc.currentScript.id,
-			loadModManage = function(i, deps) {
+			modName = doc.currentScript.id, //得到当前正在执行的js文件名
+			loadModManage = function(i, dep) {
 				depCount++;
-				loadModule(deps, function(param) {
+				loadModule(dep, function(param) {
 					params[i] = param;
 					depCount--;
 					if (depCount == 0) {
@@ -44,31 +47,31 @@
 				});
 			};
 
-		//依赖模块的参数类型可能是元素为字符串的数组也可能是字符串也可能没依赖
+		//依赖模块的参数类型为字符串的数组也可能没依赖
 		if (isArray(deps)) {
 			for (var i = 0, len = deps.length; i < len; i++) {
 				loadModManage(i, deps[i]);
 			}
-		} else if (isString(deps)) {
-			loadModManage(0, deps);
 		} else {
 			callback = deps;
-			setTimeout(function() {
-				saveModule(modName, null, callback);
-			}, 0);
+			saveModule(modName, null, callback);
 		}
 	};
 
 	// 获取模块真实路径
+	//todo路径解析需要考虑返回上一级
 	var getRealPath = function(modName) {
+
 		var pathName = global.location.pathname,
 			pathNames = pathName.split('/'),
-			baseUrl = pathName.replace(pathNames[pathNames.length - 1], ''),
+			baseUrl = pathName.replace(pathNames[pathNames.length - 1], ''), //得到当前html文档路径
 			modNames = modName.split('/');
 
 		url = baseUrl + modName.replace(/\.\//, '');
 		baseJsUrl = url.replace(modNames[modNames.length - 1], '');
+
 		if (url.indexOf('.js') == -1) url += '.js';
+
 		getRealPath = function(modName) {
 			if (/\.\//g.test(modName)) {
 				url = baseJsUrl + modName.replace(/\.\//, '');
@@ -77,14 +80,19 @@
 			} else {
 				url = baseJsUrl + modName;
 			}
-
 			if (url.indexOf('.js') == -1) url += '.js';
 			return url;
 		};
 		return url;
 	};
-	// 通过动态创建script来异步执行模块
+
+
+	/**通过动态创建script来异步执行模块
+	 *@param {String} modeName  模块名字
+	 *@param {String} url  模块全路径
+	 */
 	var execScript = function(modName, url) {
+
 		var doc = document,
 			oScript = doc.createElement('script');
 		oScript.id = modName;
@@ -95,6 +103,7 @@
 
 	//加载依赖模块
 	var loadModule = function(modName, callback) {
+
 		var url = getRealPath(modName),
 			mod;
 
@@ -125,6 +134,7 @@
 	 *@param {Function} callBack the is also a param in require or define
 	 */
 	var saveModule = function(modName, params, callback) {
+
 		var mod, fn;
 		if (modCache.hasOwnProperty(modName)) {
 			mod = modCache[modName];
@@ -135,18 +145,17 @@
 				//暴露模块
 				mod.out = callback.apply(global, params);
 			}
-
 			while (fn = mod.onload.shift()) {
 				fn(mod.out);
 			}
 		} else {
 			callback && callback.apply(global, params);
-
 		}
 	};
 
 	// 为了避免手动引入入口script，根据引入框架的data-main来指定入口script
 	var curScript = function() {
+
 		var doc = document,
 			driveMod = doc.currentScript.getAttribute('data-main') || doc.getElementsByTagName('script')[0].getAttribute('data-main'),
 			oScript = doc.createElement('script'),
@@ -154,7 +163,6 @@
 		execScript(driveMod, url);
 	};
 	curScript(); //从入口开始执行
-
 	global.require = require;
 	global.define = require;
 })(this);
